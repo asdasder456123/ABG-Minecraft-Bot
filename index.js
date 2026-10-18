@@ -1,62 +1,48 @@
-const mineflayer = require('mineflayer');
-const readline = require('readline');
+require('dotenv').config();
 
-const rl = readline.createInterface({
-  input: process.stdin,
-  output: process.stdout
+const mineflayer = require('mineflayer');
+
+const host = process.env.MC_HOST;
+const port = Number(process.env.MC_PORT);
+const username = process.env.BOT_USERNAME;
+
+if (!host || !Number.isInteger(port) || port < 1 ||
+    port > 65535 || !username) {
+  console.error('❌ الإعدادات ناقصة أو غير صحيحة في ملف .env');
+  process.exit(1);
+}
+
+console.log(`جاري توصيل الروبوت بالسيرفر ${host}:${port}...`);
+
+let spawned = false;
+
+const bot = mineflayer.createBot({
+  host,
+  port,
+  username,
+  auth: 'offline'
 });
 
-function ask(question) {
-  return new Promise(resolve => {
-    rl.question(question, answer => resolve(answer.trim()));
-  });
-}
+bot.once('spawn', () => {
+  spawned = true;
+  console.log('✅ الروبوت دخل العالم بنجاح!');
+});
 
-async function main() {
-  console.log('\n=== ABG Minecraft Bot ===\n');
+bot.on('kicked', reason => {
+  console.error('❌ الروبوت اتطرد من السيرفر:', reason);
+});
 
-  const host = await ask('اكتب IP السيرفر: ');
-  const portText = await ask('اكتب Port السيرفر: ');
-  const username = await ask('اكتب اسم الروبوت: ');
+bot.on('error', error => {
+  console.error('❌ الروبوت فشل في الاتصال:', error.message);
+});
 
-  const port = Number(portText);
-
-  if (!host || !Number.isInteger(port) || port < 1 ||
-      port > 65535 || !username) {
-    console.log('خطأ: تأكد من IP وPort واسم الروبوت.');
-    rl.close();
-    return;
+bot.on('end', reason => {
+  if (!spawned) {
+    console.error('❌ الروبوت فشل في الدخول.');
+  } else {
+    console.log('⚠️ اتصال الروبوت انتهى.');
   }
 
-  rl.close();
-
-  console.log(`جاري الاتصال بـ ${host}:${port}...`);
-
-  const bot = mineflayer.createBot({
-    host,
-    port,
-    username,
-    auth: 'offline'
-  });
-
-  bot.once('login', () => console.log('تم تسجيل الدخول.'));
-  bot.once('spawn', () => console.log('الروبوت دخل العالم بنجاح!'));
-
-  bot.on('kicked', reason => {
-    console.log('تم طرد الروبوت:', reason);
-  });
-
-  bot.on('end', reason => {
-    console.log('انتهى الاتصال:', reason || 'انقطع الاتصال');
-    console.log('لن تتم إعادة الاتصال تلقائيًا.');
-  });
-
-  bot.on('error', error => {
-    console.log('خطأ:', error.message);
-  });
-}
-
-main().catch(error => {
-  console.error('خطأ:', error.message);
-  rl.close();
+  if (reason) console.log('السبب:', reason);
+  console.log('لن تتم إعادة الاتصال تلقائيًا.');
 });
